@@ -244,7 +244,7 @@ corte = df["data_registro"].max() - pd.DateOffset(months=6)
 por_grupo({"Antes": df["data_registro"] <= corte, "Últimos 6 meses": df["data_registro"] > corte},
           "Termos que distinguem o período recente", "12_termos_periodo.png")
 
-# ---------- dados do dashboard (dashboard/dados.js) ----------
+# ---------- dados do dashboard (docs/dados.js) ----------
 # só atributos e índices por testemunho, sem o texto: o navegador refaz as contas a cada filtro
 termos_df = tfidf.T.groupby(level=0).sum().T
 dados = {
@@ -259,8 +259,8 @@ dados = {
     } for d, i, f, s, c, a, t in zip(df["data_registro"], df["idade"], df["faixa"].astype(str), df["sexo"],
                                      cats.values, ajudas.values, termos_df.values)],
 }
-Path("dashboard").mkdir(exist_ok=True)
-Path("dashboard/dados.js").write_text("const DADOS = " + json.dumps(dados, ensure_ascii=False) + ";\n", encoding="utf-8")
+Path("docs").mkdir(exist_ok=True)
+Path("docs/dados.js").write_text("const DADOS = " + json.dumps(dados, ensure_ascii=False) + ";\n", encoding="utf-8")
 
 # self-check
 assert len(dados["testemunhos"]) == len(df)
