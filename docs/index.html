@@ -15,14 +15,15 @@
   main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .sub { color: var(--ink2); margin: 0 0 20px; }
-  .filtros { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; background: var(--surface);
-             border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+  .filtros { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+  .filtros .campos { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
   .filtros label { display: flex; flex-direction: column; font-size: .8rem; color: var(--ink2); gap: 4px; }
   select, button { font: inherit; font-size: .9rem; padding: 6px 10px; border: 1px solid var(--border);
                    border-radius: 6px; background: #fff; color: var(--ink); }
   button { cursor: pointer; }
   button:hover { background: #f0efec; }
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .kpi, .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
   .kpi .rot { font-size: .8rem; color: var(--ink2); }
   .kpi .val { font-size: 1.6rem; font-weight: 700; line-height: 1.2; margin-top: 2px; }
@@ -47,7 +48,38 @@
   .linha.zero { opacity: .45; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; min-height: 260px; padding-top: 4px; }
   .chip { border-radius: 999px; padding: 4px 12px; color: #0d366b; line-height: 1.3; font-weight: 500; }
-  @media (max-width: 760px) { .grade { grid-template-columns: minmax(0, 1fr); } .graf { height: 260px; } }
+  .filtros > summary { display: none; }
+  @media (max-width: 900px) {
+    main { padding: 16px 10px 40px; }
+    h1 { font-size: 1.3rem; line-height: 1.25; }
+    .sub { font-size: .9rem; margin-bottom: 12px; }
+    /* filtros: barra fixa no topo que abre/fecha, para filtrar sem rolar a página de volta */
+    .filtros { display: block; position: sticky; top: 0; z-index: 10; padding: 0; margin: 0 -10px 12px;
+               border-radius: 0; border-width: 0 0 1px; box-shadow: 0 2px 8px rgba(11,11,11,.06); }
+    .filtros > summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer;
+                         padding: 12px 16px; font-weight: 600; font-size: .95rem; }
+    .filtros > summary::-webkit-details-marker { display: none; }
+    .filtros > summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; flex: none;
+                                border: solid var(--ink2); border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(45deg); }
+    .filtros[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+    #resumo { font-weight: 400; color: var(--ink2); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .filtros .campos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 0 16px 14px; }
+    .filtros select, .filtros button { width: 100%; padding: 8px 10px; font-size: 1rem; }
+    .filtros .inteiro { grid-column: 1 / -1; }
+    .kpis { gap: 8px; margin-bottom: 12px; }
+    .kpi { padding: 10px 12px; }
+    .kpi .rot { font-size: .75rem; }
+    .kpi .val { font-size: 1rem; }
+    .grade { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .card { padding: 12px 10px; }
+    .graf { height: 250px; }
+    .graf.mes { height: 190px !important; }
+    .graf.assuntos, .graf.sexo { height: 340px; }
+    .chips { min-height: 0; gap: 6px; }
+    table { font-size: .8rem; }
+    th { padding: 4px 2px; }
+    td { padding: 6px 2px; }
+  }
 </style>
 </head>
 <body>
@@ -55,16 +87,19 @@
   <h1>O que a congregação está vivendo</h1>
   <p class="sub">Leitura automática dos testemunhos registrados. Use os filtros para olhar um grupo específico.</p>
 
-  <section class="filtros" aria-label="Filtros">
-    <label>De <select id="de"></select></label>
-    <label>Até <select id="ate"></select></label>
-    <label>Sexo
-      <select id="sexo"><option value="">Todos</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
-    </label>
-    <label>Faixa etária <select id="faixa"><option value="">Todas</option></select></label>
-    <label>Assunto <select id="assunto"><option value="">Todos</option></select></label>
-    <button id="limpar" type="button">Limpar filtros</button>
-  </section>
+  <details class="filtros" id="filtros" open aria-label="Filtros">
+    <summary>Filtros <span id="resumo"></span></summary>
+    <div class="campos">
+      <label>De <select id="de"></select></label>
+      <label>Até <select id="ate"></select></label>
+      <label>Sexo
+        <select id="sexo"><option value="">Todos</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
+      </label>
+      <label>Faixa etária <select id="faixa"><option value="">Todas</option></select></label>
+      <label class="inteiro">Assunto <select id="assunto"><option value="">Todos</option></select></label>
+      <button id="limpar" class="inteiro" type="button">Limpar filtros</button>
+    </div>
+  </details>
 
   <section class="kpis">
     <div class="kpi"><div class="rot">Testemunhos no filtro</div><div class="val" id="k-total"></div></div>
@@ -79,12 +114,12 @@
     <div class="card largo">
       <h2>Testemunhos por mês</h2>
       <p>Quantos testemunhos foram registrados em cada mês.</p>
-      <div class="graf" style="height:240px"><canvas id="g-mes"></canvas></div>
+      <div class="graf mes" style="height:240px"><canvas id="g-mes"></canvas></div>
     </div>
     <div class="card">
       <h2>Assuntos mais abordados</h2>
       <p>Sobre o que as pessoas testemunham. Um testemunho pode tratar de mais de um assunto.</p>
-      <div class="graf"><canvas id="g-assuntos"></canvas></div>
+      <div class="graf assuntos"><canvas id="g-assuntos"></canvas></div>
     </div>
     <div class="card">
       <h2>O que ajudou</h2>
@@ -99,7 +134,7 @@
     <div class="card">
       <h2>Assunto por sexo</h2>
       <p>Mulheres à esquerda, homens à direita: quantos testemunharam sobre cada assunto.</p>
-      <div class="graf"><canvas id="g-sexo"></canvas></div>
+      <div class="graf sexo"><canvas id="g-sexo"></canvas></div>
     </div>
     <div class="card largo">
       <h2>Assunto por faixa etária</h2>
@@ -122,6 +157,12 @@ Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
 Chart.defaults.color = INK2;
 Chart.defaults.plugins.legend.display = false;
 Chart.defaults.maintainAspectRatio = false;
+const celular = matchMedia("(max-width: 900px)");
+if (celular.matches) Chart.defaults.font.size = 11;
+// no celular os filtros começam fechados (barra fixa); no desktop ficam sempre abertos
+const ajustarFiltros = () => { $("filtros").open = !celular.matches; };
+celular.addEventListener("change", ajustarFiltros);
+ajustarFiltros();
 
 // ---- filtros ----
 const meses = [];
@@ -169,18 +210,44 @@ const rotulos = { id: "rotulos", afterDatasetsDraw(c) {
   ctx.font = `12px ${Chart.defaults.font.family}`; ctx.fillStyle = INK2; ctx.textBaseline = "middle";
   c.getDatasetMeta(0).data.forEach((b, i) => {
     const v = c.data.datasets[0].data[i];
+    ctx.fillStyle = INK2; ctx.textBaseline = "middle";
     ctx.fillText(`${v} · ${Math.round(100 * v / total)}%`, b.x + 6, b.y);
+    if (celular.matches) {  // nome acima da barra: a barra ganha a largura toda do cartão
+      ctx.fillStyle = "#0b0b0b"; ctx.textBaseline = "bottom";
+      ctx.fillText(c.data.labels[i], b.base, b.y - b.height / 2 - 4);
+    }
   });
   ctx.restore();
 } };
 const gMes = barras("g-mes", false);
+if (celular.matches) {  // no celular pula rótulos em vez de girá-los
+  gMes.options.scales.x.ticks.maxRotation = 0;
+  gMes.options.scales.x.ticks.autoSkipPadding = 10;
+}
 const gAssuntos = barras("g-assuntos", true, { layout: { padding: { right: 64 } } }, [rotulos]);
 gAssuntos.options.scales.x.display = false;
 gAssuntos.options.scales.y.grid.display = false;
 gAssuntos.options.scales.y.border = { display: false };
+if (celular.matches) {
+  gAssuntos.options.scales.y.ticks.display = false;
+  gAssuntos.data.datasets[0].maxBarThickness = 12;
+  gAssuntos.options.layout.padding.top = 16;
+}
+
+// no celular: nome do assunto centralizado acima de cada par de barras, liberando a largura toda
+const rotulosCentro = { id: "rotulosCentro", afterDatasetsDraw(c) {
+  if (!celular.matches) return;
+  const { ctx } = c, x0 = c.scales.x.getPixelForValue(0);
+  ctx.save();
+  ctx.font = `12px ${Chart.defaults.font.family}`; ctx.fillStyle = "#0b0b0b";
+  ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+  c.getDatasetMeta(0).data.forEach((b, i) => ctx.fillText(c.data.labels[i], x0, b.y - b.height / 2 - 3));
+  ctx.restore();
+} };
 
 // pirâmide: mulheres para a esquerda (valores negativos), homens para a direita
 const gSexo = new Chart($("g-sexo"), {
+  plugins: [rotulosCentro],
   type: "bar",
   data: { labels: DADOS.assuntos, datasets: [
     { label: "Mulheres", data: [], backgroundColor: LARANJA, borderRadius: 4, maxBarThickness: 22 },
@@ -198,6 +265,11 @@ const gSexo = new Chart($("g-sexo"), {
     },
   },
 });
+if (celular.matches) {
+  gSexo.options.scales.y.ticks.display = false;
+  gSexo.options.layout = { padding: { top: 14 } };
+  gSexo.data.datasets.forEach(d => d.maxBarThickness = 12);
+}
 
 const contar = (sel, campo, n) => {
   const c = Array(n).fill(0);
@@ -217,6 +289,8 @@ function atualizar() {
   const mask = filtrar();
   const sel = T.filter((_, i) => mask[i]), resto = T.filter((_, i) => !mask[i]);
   $("vazio").style.display = sel.length ? "none" : "block";
+  const ativos = ["sexo", "faixa", "assunto"].filter(id => $(id).value).length + ($("de").value !== meses[0] || $("ate").value !== meses.at(-1));
+  $("resumo").textContent = `· ${sel.length} testemunhos` + (ativos ? ` · ${ativos} ativo${ativos > 1 ? "s" : ""}` : "");
   $("grade").style.visibility = sel.length ? "visible" : "hidden";
 
   // KPIs
@@ -264,11 +338,12 @@ function atualizar() {
 
   const f = contar(sel.filter(t => t.sexo === "F"), "assuntos", DADOS.assuntos.length);
   const m = contar(sel.filter(t => t.sexo === "M"), "assuntos", DADOS.assuntos.length);
-  // eixo simétrico para comparar os dois lados; par acima de 5 para os ticks não se sobreporem na borda
-  const bruto = Math.max(1, ...f, ...m), lim = bruto > 5 ? Math.ceil(bruto / 2) * 2 : bruto;
+  // eixo simétrico para comparar os dois lados; limite "redondo" para os ticks não se sobreporem na borda
+  const bruto = Math.max(1, ...f, ...m), lim = bruto > 10 ? Math.ceil(bruto / 10) * 10 : bruto > 4 ? Math.ceil(bruto / 2) * 2 : bruto;
   gSexo.data.datasets[0].data = f.map(v => -v);
   gSexo.data.datasets[1].data = m;
   gSexo.options.scales.x.min = -lim; gSexo.options.scales.x.max = lim;
+  gSexo.options.scales.x.ticks.stepSize = lim <= 4 ? 1 : lim / 2;
   gSexo.update();
 
   // tabela assunto x faixa etária
