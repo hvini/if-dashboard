@@ -49,6 +49,15 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; min-height: 260px; padding-top: 4px; }
   .chip { border-radius: 999px; padding: 4px 12px; color: #0d366b; line-height: 1.3; font-weight: 500; }
   .filtros > summary { display: none; }
+  /* leituras: frases automáticas com a conclusão antes do gráfico */
+  .leituras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .leitura { background: #eef4fc; border: 1px solid #d3e3f8; border-radius: 10px; padding: 12px 16px;
+             font-size: .92rem; line-height: 1.45; color: #1a2b40; }
+  .leitura b { color: #0d366b; }
+  .leitura .rot { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #256abf; margin-bottom: 2px; font-weight: 600; }
+  .leitura.aviso { background: #fbf6ea; border-color: #f0e2bd; color: #4a3a12; }
+  .leitura.aviso .rot { color: #8a6200; }
+  .abas { display: none; }
   @media (max-width: 900px) {
     main { padding: 16px 10px 40px; }
     h1 { font-size: 1.3rem; line-height: 1.25; }
@@ -79,7 +88,23 @@
     table { font-size: .8rem; }
     th { padding: 4px 2px; }
     td { padding: 6px 2px; }
+    /* leituras viram uma faixa deslizante; o próximo cartão aparece na beirada */
+    .leituras { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 8px;
+                margin: 0 -10px 12px; padding: 0 10px; scrollbar-width: none; }
+    .leituras::-webkit-scrollbar { display: none; }
+    .leitura { flex: 0 0 82%; scroll-snap-align: center; padding: 10px 12px; font-size: .88rem; }
+    .leitura:only-child { flex-basis: 100%; }
+    /* abas: um grupo de gráficos por vez */
+    .abas { display: flex; gap: 4px; background: #edece7; border-radius: 10px; padding: 4px; margin-bottom: 12px; }
+    .abas button { flex: 1; border: 0; background: transparent; border-radius: 7px; padding: 8px 4px;
+                   font-size: .9rem; color: var(--ink2); font-weight: 500; }
+    .abas button[aria-selected="true"] { background: var(--surface); color: var(--ink); font-weight: 600;
+                                         box-shadow: 0 1px 3px rgba(11,11,11,.12); }
+    .grade[data-ativa="quando"] .card:not([data-aba="quando"]),
+    .grade[data-ativa="oque"] .card:not([data-aba="oque"]),
+    .grade[data-ativa="quem"] .card:not([data-aba="quem"]) { display: none; }
   }
+  @media (max-width: 900px) and (min-width: 600px) { .leitura { flex-basis: 48%; } }
 </style>
 </head>
 <body>
@@ -108,35 +133,43 @@
     <div class="kpi"><div class="rot">Idade mediana</div><div class="val" id="k-idade"></div></div>
   </section>
 
+  <section class="leituras" id="leituras" aria-label="Leituras automáticas" aria-live="polite"></section>
+
   <p class="vazio" id="vazio">Nenhum testemunho com esses filtros.</p>
 
-  <section class="grade" id="grade">
-    <div class="card largo">
+  <nav class="abas" role="tablist" aria-label="Grupos de gráficos">
+    <button type="button" role="tab" data-aba="quando" aria-selected="true">Quando</button>
+    <button type="button" role="tab" data-aba="oque" aria-selected="false">Sobre o quê</button>
+    <button type="button" role="tab" data-aba="quem" aria-selected="false">Quem</button>
+  </nav>
+
+  <section class="grade" id="grade" data-ativa="quando">
+    <div class="card largo" data-aba="quando">
       <h2>Testemunhos por mês</h2>
       <p>Quantos testemunhos foram registrados em cada mês.</p>
       <div class="graf mes" style="height:240px"><canvas id="g-mes"></canvas></div>
     </div>
-    <div class="card">
+    <div class="card" data-aba="oque">
       <h2>Assuntos mais abordados</h2>
       <p>Sobre o que as pessoas testemunham. Um testemunho pode tratar de mais de um assunto.</p>
       <div class="graf assuntos"><canvas id="g-assuntos"></canvas></div>
     </div>
-    <div class="card">
+    <div class="card" data-aba="oque">
       <h2>O que ajudou</h2>
       <p>O que as pessoas citam como parte da solução: ministérios da igreja ou serviços de fora.</p>
       <div class="lista" id="l-ajudas"></div>
     </div>
-    <div class="card">
+    <div class="card" data-aba="oque">
       <h2 id="t-termos">Palavras que mais se destacam</h2>
       <p id="p-termos"></p>
       <div class="chips" id="c-termos"></div>
     </div>
-    <div class="card">
+    <div class="card" data-aba="quem">
       <h2>Assunto por sexo</h2>
       <p>Mulheres à esquerda, homens à direita: quantos testemunharam sobre cada assunto.</p>
       <div class="graf sexo"><canvas id="g-sexo"></canvas></div>
     </div>
-    <div class="card largo">
+    <div class="card largo" data-aba="quem">
       <h2>Assunto por faixa etária</h2>
       <p>Quanto mais escura a célula, mais testemunhos daquele assunto naquela idade.</p>
       <div id="t-faixa"></div>
@@ -184,12 +217,72 @@ function limpar() {
 for (const id of ["de", "ate", "sexo", "faixa", "assunto"]) $(id).addEventListener("change", atualizar);
 $("limpar").addEventListener("click", limpar);
 
-function filtrar() {
-  const de = $("de").value, ate = $("ate").value, sx = $("sexo").value, fx = $("faixa").value, as = $("assunto").value;
-  return T.map(t => {
-    const m = t.data.slice(0, 7);
-    return m >= de && m <= ate && (!sx || t.sexo === sx) && (!fx || t.faixa === fx) && (!as || t.assuntos.includes(+as));
-  });
+// filtros que não são de período (usados também para comparar o período com o resto do ano)
+function passaOutros(t) {
+  const sx = $("sexo").value, fx = $("faixa").value, as = $("assunto").value;
+  return (!sx || t.sexo === sx) && (!fx || t.faixa === fx) && (!as || t.assuntos.includes(+as));
+}
+const noPeriodo = t => { const m = t.data.slice(0, 7); return m >= $("de").value && m <= $("ate").value; };
+const filtrar = () => T.map(t => noPeriodo(t) && passaOutros(t));
+
+// abas (só aparecem no celular)
+const botoesAba = document.querySelectorAll(".abas button");
+botoesAba.forEach(b => b.addEventListener("click", () => {
+  $("grade").dataset.ativa = b.dataset.aba;
+  botoesAba.forEach(x => x.setAttribute("aria-selected", String(x === b)));
+  // gráficos criados com a aba escondida têm tamanho zero: redesenha ao mostrar
+  requestAnimationFrame(() => [gMes, gAssuntos, gSexo].forEach(g => { g.resize(); g.update("none"); }));
+}));
+
+// ---- leituras automáticas: regras simples sobre os números do filtro ----
+const pct = (n, d) => d ? Math.round(100 * n / d) : 0;
+const num = x => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+const vezes = x => x.toLocaleString("pt-BR", { maximumFractionDigits: x < 10 ? 1 : 0 }) + "×";
+
+// item (ajuda ou assunto) que mais pesa no grupo filtrado em relação aos demais
+function destaque(campo, nomes, sel, resto, cSel, ignorar = -1) {
+  const cResto = contar(resto, campo, nomes.length);
+  return nomes.map((nome, i) => ({ nome, i, ps: pct(cSel[i], sel.length), pr: pct(cResto[i], resto.length) }))
+    .filter(d => d.i !== ignorar && d.ps >= 15)
+    .sort((a, b) => (b.ps - b.pr) - (a.ps - a.pr))[0];
+}
+
+function leituras(sel, resto, cA, cJ) {
+  if (!sel.length) return [];
+  const out = [], de = $("de").value, ate = $("ate").value, filtrado = resto.length > 0;
+  if (sel.length < 10) out.push(["aviso", "Atenção", `Só <b>${sel.length} testemunho${sel.length > 1 ? "s" : ""}</b> neste filtro: diferenças pequenas podem ser acaso.`]);
+
+  // volume
+  if (de !== meses[0] || ate !== meses.at(-1)) {
+    const nDentro = meses.filter(m => m >= de && m <= ate).length, nFora = meses.length - nDentro;
+    const fora = T.filter(t => !noPeriodo(t) && passaOutros(t)).length;
+    const rD = sel.length / nDentro, rF = nFora ? fora / nFora : 0;
+    if (rF > 0 && rD / rF >= 1.3) out.push(["", "Volume", `Neste período foram <b>${num(rD)} testemunhos por mês</b>, <b>${vezes(rD / rF)} a média</b> dos outros meses (${num(rF)}).`]);
+    else if (rF > 0 && rD / rF <= 0.77) out.push(["", "Volume", `Período mais fraco: <b>${num(rD)} por mês</b>, abaixo da média dos outros meses (${num(rF)}).`]);
+    else if (rF > 0) out.push(["", "Volume", `Ritmo parecido com o resto do ano: <b>${num(rD)} por mês</b> contra ${num(rF)}.`]);
+  } else {
+    const porMes = {}; sel.forEach(t => { const m = t.data.slice(0, 7); porMes[m] = (porMes[m] || 0) + 1; });
+    const [pico, n] = Object.entries(porMes).sort((a, b) => b[1] - a[1])[0];
+    const media = sel.length / meses.length;
+    out.push(["", "Volume", n >= 3 && n >= 2 * media  // pico de 1–2 testemunhos é ruído
+      ? `O pico foi em <b>${nomeMes(pico)}</b>, com <b>${n} testemunhos</b>: ${vezes(n / media)} a média mensal (${num(media)}).`
+      : `Média de <b>${num(media)} testemunhos por mês</b>, sem picos fortes.`]);
+  }
+
+  // o que ajudou
+  const dj = filtrado && destaque("ajudas", DADOS.ajudas, sel, resto, cJ);
+  const [j1, j2] = ordenado(DADOS.ajudas, cJ);
+  if (dj && dj.ps - dj.pr >= 10) out.push(["", "O que ajudou", `<b>${dj.nome}</b> aparece em <b>${dj.ps}%</b> destes testemunhos, contra ${dj.pr}% nos demais.`]);
+  else out.push(["", "O que ajudou", `A ajuda mais citada é <b>${j1[0]}</b> (<b>${pct(j1[1], sel.length)}%</b>), seguida de <b>${j2[0]}</b> (${pct(j2[1], sel.length)}%).`]);
+
+  // assuntos (ignora o assunto escolhido no filtro, que seria 100%)
+  const filtroAs = $("assunto").value === "" ? -1 : +$("assunto").value;
+  const da = filtrado && destaque("assuntos", DADOS.assuntos, sel, resto, cA, filtroAs);
+  const [a1, a2] = ordenado(DADOS.assuntos, cA).filter(([nome]) => DADOS.assuntos.indexOf(nome) !== filtroAs);
+  if (da && da.ps - da.pr >= 8) out.push(["", "Assuntos", `<b>${da.nome}</b> pesa mais aqui: <b>${da.ps}%</b> dos testemunhos, contra ${da.pr}% nos demais.`]);
+  else if (a1[1]) out.push(["", "Assuntos", `<b>${a1[0]}</b> é o assunto mais frequente (${pct(a1[1], sel.length)}%), seguido de <b>${a2[0]}</b> (${pct(a2[1], sel.length)}%).`]);
+
+  return out.slice(0, 3);
 }
 
 // ---- gráficos ----
@@ -301,6 +394,11 @@ function atualizar() {
   $("k-assunto").textContent = sel.length ? ordenado(DADOS.assuntos, cA)[0][0] : "–";
   $("k-ajuda").textContent = sel.length ? ordenado(DADOS.ajudas, cJ)[0][0] : "–";
   $("k-idade").textContent = mediana === null ? "–" : Math.round(mediana) + " anos";
+
+  $("leituras").innerHTML = leituras(sel, resto, cA, cJ).map(([tipo, rot, txt]) =>
+    `<div class="leitura ${tipo}"><span class="rot">${rot}</span>${txt}</div>`).join("");
+  $("leituras").scrollLeft = 0;
+  document.querySelector(".abas").style.visibility = sel.length ? "visible" : "hidden";
 
   // por mês (só o intervalo escolhido)
   const vis = meses.filter(m => m >= $("de").value && m <= $("ate").value);
